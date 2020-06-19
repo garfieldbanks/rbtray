@@ -31,14 +31,14 @@
 
 struct Settings
 {
-    Settings() : shouldExit_(false), useHook_(true), windowSpecs_(nullptr), windowSpecsSize_(0) {}
+    Settings() : shouldExit_(false), useHook_(true), autotray_(nullptr), autotraySize_(0) {}
     ~Settings()
     {
-        if (windowSpecs_) {
-            for (size_t i = 0; i < windowSpecsSize_; ++i) {
-                free(windowSpecs_[i].className_);
+        if (autotray_) {
+            for (size_t i = 0; i < autotraySize_; ++i) {
+                free(autotray_[i].className_);
             }
-            free(windowSpecs_);
+            free(autotray_);
         }
     }
 
@@ -48,15 +48,14 @@ struct Settings
     bool shouldExit_;
     bool useHook_;
 
-    struct WindowSpec
+    void addAutotray(const char * className);
+
+    struct Autotray
     {
         WCHAR * className_;
     };
-
-    void addWindowSpec(const char * className);
-
-    WindowSpec * windowSpecs_;
-    size_t windowSpecsSize_;
+    Autotray * autotray_;
+    size_t autotraySize_;
 };
 
 static UINT WM_TASKBAR_CREATED;
@@ -197,6 +196,39 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             }
             break;
         }
+
+        case WM_WNDCREATED: {
+            DEBUG_PRINTF("window created\n");
+            if (_settings.autotray_) {
+                HWND hwnd = (HWND)lParam;
+                if (hwnd != _hwnd) {
+#if !defined(NDEBUG)
+                    WCHAR text[256];
+                    GetWindowText(hwnd, text, sizeof(text) / sizeof(text[0]));
+                    DEBUG_PRINTF("window text '%ls'\n", text);
+#endif
+
+                    WCHAR className[256];
+                    GetClassName(hwnd, className, sizeof(className) / sizeof(className[0]));
+                    DEBUG_PRINTF("window class name '%ls'\n", className);
+
+                    for (size_t i = 0; i < _settings.autotraySize_; ++i) {
+                        const Settings::Autotray & autotray = _settings.autotray_[i];
+                        if (autotray.className_) {
+                            DEBUG_PRINTF("comparing '%ls' to '%ls'\n", className, autotray.className_);
+                            if (wcsstr(className, autotray.className_)) {
+                                DEBUG_PRINTF("auto-traying window '%ls'\n", className);
+                                Sleep(1000); // FIX - terrible hack
+                                MinimizeWindowToTray(hwnd);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            break;
+        }
+
         case WM_HOTKEY: {
             HWND fgWnd = GetForegroundWindow();
             if (!fgWnd) {
@@ -268,6 +300,60 @@ void Settings::parseJson(const char * json)
             DEBUG_PRINTF("bad type for '%s'\n", hook->string);
         } else {
             useHook_ = cJSON_IsTrue(hook) ? true : false;
+        }
+    }
+
+    const cJSON * autotray = cJSON_GetObjectItemCaseSensitive(cjson, "autotray");
+    if (autotray) {
+        if (!cJSON_IsArray(autotray)) {
+            DEBUG_PRINTF("bad type for '%s'\n", autotray->string);
+        } else {
+            int arrSize = cJSON_GetArraySize(autotray);
+            for (int i = 0; i < arrSize; ++i) {
+                const cJSON * item = cJSON_GetArrayItem(autotray, i);
+                if (!cJSON_IsObject(item)) {
+                    DEBUG_PRINTF("bad type for '%s'\n", item->string);
+                } else {
+                    cJSON * classname = cJSON_GetObjectItemCaseSensitive(item, "classname");
+                    if (!classname) {
+                        DEBUG_PRINTF("missing classname for '%s'\n", item->string);
+                    } else {
+                        const char * classnameStr = cJSON_GetStringValue(classname);
+                        if (!classnameStr) {
+                            DEBUG_PRINTF("bad type for '%s'\n", classname->string);
+                        } else {
+                            addAutotray(classnameStr);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Settings::addAutotray(const char * className)
+{
+    size_t newAutotraySize = autotraySize_ + 1;
+    autotray_ = (Autotray *)realloc(autotray_, sizeof(Autotray) * newAutotraySize);
+    if (!autotray_) {
+        DEBUG_PRINTF("could not allocate %zu window specs\n", newAutotraySize);
+        autotray_ = nullptr;
+        autotraySize_ = 0;
+        return;
+    }
+
+    Autotray & autotray = autotray_[autotraySize_];
+    autotraySize_ = newAutotraySize;
+
+    size_t len = strlen(className) + 1;
+    autotray.className_ = (WCHAR *)malloc(sizeof(WCHAR) * len);
+    if (!autotray.className_) {
+        DEBUG_PRINTF("could not allocate %zu wchars\n", len);
+    } else {
+        if (MultiByteToWideChar(CP_UTF8, 0, className, (int)len, autotray.className_, (int)len) <= 0) {
+            DEBUG_PRINTF("could not convert class name to wide chars\n");
+            free(autotray.className_);
+            autotray.className_ = nullptr;
         }
     }
 }

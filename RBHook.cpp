@@ -23,7 +23,7 @@
 #include "RBTray.h"
 #include "Tray.h"
 
-#include <stdio.h>
+// #include <stdio.h>
 #include <windows.h>
 
 static HHOOK _hMouse = NULL;
@@ -88,29 +88,46 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 LRESULT CALLBACK CallWndProcRet(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
-        CWPRETSTRUCT * msg = (CWPRETSTRUCT *)lParam;
-        switch (msg->message) {
+        CWPRETSTRUCT * cwpret = (CWPRETSTRUCT *)lParam;
+        switch (cwpret->message) {
+            // window position changed
             case WM_WINDOWPOSCHANGED: {
-                if ((((WINDOWPOS *)msg->lParam)->flags & SWP_SHOWWINDOW) != 0) {
-                    PostMessage(FindWindow(NAME, NAME), WM_REFRTRAY, 0, (LPARAM)msg->hwnd);
+                // refresh tray if window became visible
+                if ((((WINDOWPOS *)cwpret->lParam)->flags & SWP_SHOWWINDOW) != 0) {
+                    PostMessage(FindWindow(NAME, NAME), WM_REFRTRAY, 0, (LPARAM)cwpret->hwnd);
                 }
                 break;
             }
+
+            // window about to be destroyed
             case WM_NCDESTROY: {
-                PostMessage(FindWindow(NAME, NAME), WM_REFRTRAY, 0, (LPARAM)msg->hwnd);
+                // refresh tray if window destroyed
+                PostMessage(FindWindow(NAME, NAME), WM_REFRTRAY, 0, (LPARAM)cwpret->hwnd);
                 break;
             }
-            //case WM_SYSCOMMAND:
-            //    if (msg->wParam == SC_MINIMIZE) {
-            //        //DEBUG_PRINTF("%s(%d): minimize\n", __FUNCTION__, __LINE__);
-            //        WCHAR text[256];
-            //        GetWindowText(msg->hwnd, text, sizeof(text) / sizeof(text[0]));
-            //        if (wcsstr(text, L"Notepad")) {
-            //            //PostMessage(FindWindow(NAME, NAME), WM_ADDTRAY, 0, (LPARAM)msg->hwnd);
-            //        }
-            //    }
-            //    break;
-            //}
+
+            // window was created
+            case WM_CREATE: {
+                CREATESTRUCT * create = (CREATESTRUCT *)cwpret->lParam;
+                // filter out child windows
+                if (!create->hwndParent) {
+                    // notify that a window was created
+                    PostMessage(FindWindow(NAME, NAME), WM_WNDCREATED, 0, (LPARAM)cwpret->hwnd);
+                }
+                break;
+            }
+
+            // case WM_SYSCOMMAND: {
+            //     if (msg->wParam == SC_MINIMIZE) {
+            //         //DEBUG_PRINTF("%s(%d): minimize\n", __FUNCTION__, __LINE__);
+            //         WCHAR text[256];
+            //         GetWindowText(msg->hwnd, text, sizeof(text) / sizeof(text[0]));
+            //         if (wcsstr(text, L"Notepad")) {
+            //             //PostMessage(FindWindow(NAME, NAME), WM_ADDTRAY, 0, (LPARAM)msg->hwnd);
+            //         }
+            //     }
+            //     break;
+            // }
         }
     }
     return CallNextHookEx(_hWndProcRet, nCode, wParam, lParam);
