@@ -23,13 +23,15 @@
 #pragma once
 
 #include <Windows.h>
+#include <stdio.h>
 
-#define MAXTRAYITEMS 64
-
-extern HWND hwndItems_[MAXTRAYITEMS];
-
-bool AddToTray(int i);
-void MinimizeWindowToTray(HWND hwnd);
-void RestoreWindowFromTray(HWND hwnd);
-void CloseWindowFromTray(HWND hwnd);
-void RefreshWindowInTray(HWND hwnd);
+#if defined(NDEBUG)
+#define DEBUG_PRINTF(fmt, ...)
+#else
+#define DEBUG_PRINTF(fmt, ...)                          \
+    do {                                                \
+        char buf[1024];                                 \
+        snprintf(buf, sizeof(buf), fmt, ##__VA_ARGS__); \
+        OutputDebugStringA(buf);                        \
+    } while (0)
+#endif

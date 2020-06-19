@@ -20,45 +20,40 @@
 //
 // ****************************************************************************
 
+#include "DebugPrint.h"
 #include "RBTray.h"
 #include "Tray.h"
 
-// #include <stdio.h>
-#include <windows.h>
+#include <Windows.h>
 
 static HHOOK _hMouse = NULL;
 static HHOOK _hWndProcRet = NULL;
 static HWND _hLastHit = NULL;
-
-// #define DEBUG_PRINTF(fmt, ...) \
-//     do { \
-//         char buf[1024]; \
-//         snprintf(buf, sizeof(buf), fmt, ##__VA_ARGS__); \
-//         OutputDebugStringA(buf); \
-//     } while (0)
 
 // Works for 32-bit and 64-bit apps
 LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
 {
     if (nCode >= 0) {
         // if ((wParam != WM_MOUSEMOVE) && (wParam != WM_NCMOUSEMOVE)) {
-        //     DEBUG_PRINTF("%s(%d): nCode %d, wParam %llx, lParam %llx\n", __FUNCTION__, __LINE__, nCode, (long long
-        //     int)wParam, (long long int)lParam);
+        //     DEBUG_PRINTF(
+        //         "%s(%d): nCode %d, wParam %llx, lParam %llx\n",
+        //         __FUNCTION__,
+        //         __LINE__,
+        //         nCode,
+        //         (long long int)wParam,
+        //         (long long int)lParam);
         // }
-        MOUSEHOOKSTRUCT * info = (MOUSEHOOKSTRUCT *)lParam;
-        // if ((wParam != WM_MOUSEMOVE) && (wParam != WM_NCMOUSEMOVE)) {
-        //     DEBUG_PRINTF("%s(%d): pt (%ld, %ld), hwnd %p, wHitTestCode %u, dwExtraInfo %llx\n", __FUNCTION__,
-        //     __LINE__, info->pt.x, info->pt.y, info->hwnd, info->wHitTestCode, info->dwExtraInfo);
-        // }
+
         if ((wParam == WM_NCRBUTTONDOWN) || (wParam == WM_NCRBUTTONUP)) {
             // DEBUG_PRINTF("%s(%d): button\n", __FUNCTION__, __LINE__);
+            MOUSEHOOKSTRUCT * info = (MOUSEHOOKSTRUCT *)lParam;
             if (info->wHitTestCode == HTCLIENT) {
                 // DEBUG_PRINTF("%s(%d): ignoring client hit test code for non-client message\n", __FUNCTION__, __LINE__);
             } else {
                 BOOL shiftKeyDown = (GetKeyState(VK_SHIFT) & 0x8000) ? TRUE : FALSE;
                 BOOL isHit = (info->wHitTestCode == HTMINBUTTON) || ((info->wHitTestCode == HTCAPTION) && shiftKeyDown);
-                // DEBUG_PRINTF("%s(%d): shift %s, hit %s\n", __FUNCTION__, __LINE__, shiftKeyDown ? "yes" : "no",
-                //     isHit ? "yes" : "no");
+                // DEBUG_PRINTF("%s(%d): shift %s, hit %s\n", __FUNCTION__, __LINE__, shiftKeyDown ? "yes" : "no", isHit
+                // ? "yes" : "no");
                 if ((wParam == WM_NCRBUTTONDOWN) && isHit) {
                     // DEBUG_PRINTF("%s(%d): down hit\n", __FUNCTION__, __LINE__);
                     _hLastHit = info->hwnd;
@@ -117,41 +112,48 @@ LRESULT CALLBACK CallWndProcRet(int nCode, WPARAM wParam, LPARAM lParam)
                 break;
             }
 
-            // case WM_SYSCOMMAND: {
-            //     if (msg->wParam == SC_MINIMIZE) {
-            //         //DEBUG_PRINTF("%s(%d): minimize\n", __FUNCTION__, __LINE__);
-            //         WCHAR text[256];
-            //         GetWindowText(msg->hwnd, text, sizeof(text) / sizeof(text[0]));
-            //         if (wcsstr(text, L"Notepad")) {
-            //             //PostMessage(FindWindow(NAME, NAME), WM_ADDTRAY, 0, (LPARAM)msg->hwnd);
-            //         }
-            //     }
-            //     break;
-            // }
+#if 0
+            case WM_SYSCOMMAND: {
+                if (msg->wParam == SC_MINIMIZE) {
+                    //DEBUG_PRINTF("%s(%d): minimize\n", __FUNCTION__, __LINE__);
+                    WCHAR text[256];
+                    GetWindowText(msg->hwnd, text, sizeof(text) / sizeof(text[0]));
+                    if (wcsstr(text, L"Notepad")) {
+                        //PostMessage(FindWindow(NAME, NAME), WM_ADDTRAY, 0, (LPARAM)msg->hwnd);
+                    }
+                }
+                break;
+            }
+#endif
         }
     }
+
     return CallNextHookEx(_hWndProcRet, nCode, wParam, lParam);
 }
 
 BOOL DLLIMPORT RegisterHook(HMODULE hLib)
 {
     // DEBUG_PRINTF("%s(%d): register hook\n", __FUNCTION__, __LINE__);
+
     _hMouse = SetWindowsHookEx(WH_MOUSE, (HOOKPROC)MouseProc, hLib, 0);
     _hWndProcRet = SetWindowsHookEx(WH_CALLWNDPROCRET, (HOOKPROC)CallWndProcRet, hLib, 0);
     if ((_hMouse == NULL) || (_hWndProcRet == NULL)) {
         UnRegisterHook();
         return FALSE;
     }
+
     return TRUE;
 }
 
 void DLLIMPORT UnRegisterHook()
 {
     // DEBUG_PRINTF("%s(%d): unregister hook\n", __FUNCTION__, __LINE__);
+
     if (_hMouse) {
         UnhookWindowsHookEx(_hMouse);
         _hMouse = NULL;
     }
+
     if (_hWndProcRet) {
         UnhookWindowsHookEx(_hWndProcRet);
         _hWndProcRet = NULL;

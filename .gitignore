@@ -17,4 +17,5 @@
 *.suo
 *.tlog
 *.user
+*.FileListAbsolute.txt
 /RBTray.args.json

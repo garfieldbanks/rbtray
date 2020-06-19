@@ -22,61 +22,21 @@
 
 #include "RBTray.h"
 
+#include "DebugPrint.h"
+#include "Settings.h"
 #include "Tray.h"
-#include "cJSON.h"
 #include "resource.h"
 
-#include <stdio.h>
-#include <windows.h>
-
-struct Settings
-{
-    Settings() : shouldExit_(false), useHook_(true), autotray_(nullptr), autotraySize_(0) {}
-    ~Settings()
-    {
-        if (autotray_) {
-            for (size_t i = 0; i < autotraySize_; ++i) {
-                free(autotray_[i].className_);
-            }
-            free(autotray_);
-        }
-    }
-
-    void parseCommandLine();
-    void parseJson(const char * json);
-
-    bool shouldExit_;
-    bool useHook_;
-
-    void addAutotray(const char * className);
-
-    struct Autotray
-    {
-        WCHAR * className_;
-    };
-    Autotray * autotray_;
-    size_t autotraySize_;
-};
+#include <Windows.h>
 
 static UINT WM_TASKBAR_CREATED;
 
-HWND _hwnd = NULL;
+HWND hwnd_ = NULL;
 
-static HINSTANCE _hInstance;
-static HMODULE _hLib;
-static HWND _hwndForMenu;
-static Settings _settings;
-
-#if defined(NDEBUG)
-#define DEBUG_PRINTF(fmt, ...)
-#else
-#define DEBUG_PRINTF(fmt, ...)                          \
-    do {                                                \
-        char buf[1024];                                 \
-        snprintf(buf, sizeof(buf), fmt, ##__VA_ARGS__); \
-        OutputDebugStringA(buf);                        \
-    } while (0)
-#endif
+static HINSTANCE hInstance_;
+static HMODULE hLib_;
+static HWND hwndForMenu_;
+static Settings settings_;
 
 void ExecuteMenu()
 {
@@ -90,16 +50,16 @@ void ExecuteMenu()
     }
     AppendMenu(hMenu, MF_STRING, IDM_ABOUT, L"About RBTray");
     AppendMenu(hMenu, MF_STRING, IDM_EXIT, L"Exit RBTray");
-    AppendMenu(hMenu, MF_SEPARATOR, 0, NULL); //--------------
+    AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
     AppendMenu(hMenu, MF_STRING, IDM_CLOSE, L"Close Window");
     AppendMenu(hMenu, MF_STRING, IDM_RESTORE, L"Restore Window");
 
     GetCursorPos(&point);
-    SetForegroundWindow(_hwnd);
+    SetForegroundWindow(hwnd_);
 
-    TrackPopupMenu(hMenu, TPM_LEFTBUTTON | TPM_RIGHTBUTTON | TPM_RIGHTALIGN | TPM_BOTTOMALIGN, point.x, point.y, 0, _hwnd, NULL);
+    TrackPopupMenu(hMenu, TPM_LEFTBUTTON | TPM_RIGHTBUTTON | TPM_RIGHTALIGN | TPM_BOTTOMALIGN, point.x, point.y, 0, hwnd_, NULL);
 
-    PostMessage(_hwnd, WM_USER, 0, 0);
+    PostMessage(hwnd_, WM_USER, 0, 0);
     DestroyMenu(hMenu);
 }
 
@@ -139,22 +99,22 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_COMMAND: {
             switch (LOWORD(wParam)) {
                 case IDM_RESTORE: {
-                    RestoreWindowFromTray(_hwndForMenu);
+                    RestoreWindowFromTray(hwndForMenu_);
                     break;
                 }
 
                 case IDM_CLOSE: {
-                    CloseWindowFromTray(_hwndForMenu);
+                    CloseWindowFromTray(hwndForMenu_);
                     break;
                 }
 
                 case IDM_ABOUT: {
-                    DialogBox(_hInstance, MAKEINTRESOURCE(IDD_ABOUT), _hwnd, (DLGPROC)AboutDlgProc);
+                    DialogBox(hInstance_, MAKEINTRESOURCE(IDD_ABOUT), hwnd_, (DLGPROC)AboutDlgProc);
                     break;
                 }
 
                 case IDM_EXIT: {
-                    SendMessage(_hwnd, WM_DESTROY, 0, 0);
+                    SendMessage(hwnd_, WM_DESTROY, 0, 0);
                     break;
                 }
             }
@@ -162,35 +122,49 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 
         case WM_ADDTRAY: {
-            MinimizeWindowToTray((HWND)lParam);
+            HWND hwnd = (HWND)lParam;
+
+#if !defined(NDEBUG)
+            WCHAR text[256];
+            GetWindowText(hwnd, text, sizeof(text) / sizeof(text[0]));
+            DEBUG_PRINTF("window text '%ls'\n", text);
+
+            WCHAR className[256];
+            GetClassName(hwnd, className, sizeof(className) / sizeof(className[0]));
+            DEBUG_PRINTF("window class name '%ls'\n", className);
+#endif
+
+            MinimizeWindowToTray(hwnd);
             break;
         }
 
         case WM_REMTRAY: {
-            RestoreWindowFromTray((HWND)lParam);
+            HWND hwnd = (HWND)lParam;
+            RestoreWindowFromTray(hwnd);
             break;
         }
 
         case WM_REFRTRAY: {
-            RefreshWindowInTray((HWND)lParam);
+            HWND hwnd = (HWND)lParam;
+            RefreshWindowInTray(hwnd);
             break;
         }
 
         case WM_TRAYCMD: {
             switch ((UINT)lParam) {
                 case NIN_SELECT: {
-                    RestoreWindowFromTray(_hwndItems[wParam]);
+                    RestoreWindowFromTray(hwndItems_[wParam]);
                     break;
                 }
 
                 case WM_CONTEXTMENU: {
-                    _hwndForMenu = _hwndItems[wParam];
+                    hwndForMenu_ = hwndItems_[wParam];
                     ExecuteMenu();
                     break;
                 }
 
                 case WM_MOUSEMOVE: {
-                    RefreshWindowInTray(_hwndItems[wParam]);
+                    RefreshWindowInTray(hwndItems_[wParam]);
                     break;
                 }
             }
@@ -199,9 +173,9 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
         case WM_WNDCREATED: {
             DEBUG_PRINTF("window created\n");
-            if (_settings.autotray_) {
+            if (settings_.autotray_) {
                 HWND hwnd = (HWND)lParam;
-                if (hwnd != _hwnd) {
+                if (hwnd != hwnd_) {
 #if !defined(NDEBUG)
                     WCHAR text[256];
                     GetWindowText(hwnd, text, sizeof(text) / sizeof(text[0]));
@@ -212,8 +186,8 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     GetClassName(hwnd, className, sizeof(className) / sizeof(className[0]));
                     DEBUG_PRINTF("window class name '%ls'\n", className);
 
-                    for (size_t i = 0; i < _settings.autotraySize_; ++i) {
-                        const Settings::Autotray & autotray = _settings.autotray_[i];
+                    for (size_t i = 0; i < settings_.autotraySize_; ++i) {
+                        const Settings::Autotray & autotray = settings_.autotray_[i];
                         if (autotray.className_) {
                             DEBUG_PRINTF("comparing '%ls' to '%ls'\n", className, autotray.className_);
                             if (wcsstr(className, autotray.className_)) {
@@ -230,31 +204,41 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         }
 
         case WM_HOTKEY: {
-            HWND fgWnd = GetForegroundWindow();
-            if (!fgWnd) {
+            HWND hwnd = GetForegroundWindow();
+            if (!hwnd) {
                 break;
             }
 
-            LONG style = GetWindowLong(fgWnd, GWL_STYLE);
+            LONG style = GetWindowLong(hwnd, GWL_STYLE);
             if (!(style & WS_MINIMIZEBOX)) {
                 // skip, no minimize box
                 break;
             }
 
-            MinimizeWindowToTray(fgWnd);
+#if !defined(NDEBUG)
+            WCHAR text[256];
+            GetWindowText(hwnd, text, sizeof(text) / sizeof(text[0]));
+            DEBUG_PRINTF("window text '%ls'\n", text);
+
+            WCHAR className[256];
+            GetClassName(hwnd, className, sizeof(className) / sizeof(className[0]));
+            DEBUG_PRINTF("window class name '%ls'\n", className);
+#endif
+
+            MinimizeWindowToTray(hwnd);
 
             break;
         }
 
         case WM_DESTROY: {
             for (int i = 0; i < MAXTRAYITEMS; i++) {
-                if (_hwndItems[i]) {
-                    RestoreWindowFromTray(_hwndItems[i]);
+                if (hwndItems_[i]) {
+                    RestoreWindowFromTray(hwndItems_[i]);
                 }
             }
-            if (_hLib) {
+            if (hLib_) {
                 UnRegisterHook();
-                FreeLibrary(_hLib);
+                FreeLibrary(hLib_);
             }
             PostQuitMessage(0);
             break;
@@ -263,7 +247,7 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         default: {
             if (msg == WM_TASKBAR_CREATED) {
                 for (int i = 0; i < MAXTRAYITEMS; i++) {
-                    if (_hwndItems[i]) {
+                    if (hwndItems_[i]) {
                         AddToTray(i);
                     }
                 }
@@ -273,89 +257,6 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
 
     return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-void Settings::parseCommandLine()
-{
-    int argc;
-    LPWSTR * argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    for (int a = 0; a < argc; ++a) {
-        if (!wcscmp(argv[a], L"--exit")) {
-            shouldExit_ = true;
-        }
-        if (!wcscmp(argv[a], L"--no-hook")) {
-            useHook_ = false;
-        }
-    }
-}
-
-void Settings::parseJson(const char * json)
-{
-    const cJSON * cjson = cJSON_Parse(json);
-    DEBUG_PRINTF("Parsed settings JSON: %s\n", cJSON_Print(cjson));
-
-    const cJSON * hook = cJSON_GetObjectItemCaseSensitive(cjson, "hook");
-    if (hook) {
-        if (!cJSON_IsBool(hook)) {
-            DEBUG_PRINTF("bad type for '%s'\n", hook->string);
-        } else {
-            useHook_ = cJSON_IsTrue(hook) ? true : false;
-        }
-    }
-
-    const cJSON * autotray = cJSON_GetObjectItemCaseSensitive(cjson, "autotray");
-    if (autotray) {
-        if (!cJSON_IsArray(autotray)) {
-            DEBUG_PRINTF("bad type for '%s'\n", autotray->string);
-        } else {
-            int arrSize = cJSON_GetArraySize(autotray);
-            for (int i = 0; i < arrSize; ++i) {
-                const cJSON * item = cJSON_GetArrayItem(autotray, i);
-                if (!cJSON_IsObject(item)) {
-                    DEBUG_PRINTF("bad type for '%s'\n", item->string);
-                } else {
-                    cJSON * classname = cJSON_GetObjectItemCaseSensitive(item, "classname");
-                    if (!classname) {
-                        DEBUG_PRINTF("missing classname for '%s'\n", item->string);
-                    } else {
-                        const char * classnameStr = cJSON_GetStringValue(classname);
-                        if (!classnameStr) {
-                            DEBUG_PRINTF("bad type for '%s'\n", classname->string);
-                        } else {
-                            addAutotray(classnameStr);
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-void Settings::addAutotray(const char * className)
-{
-    size_t newAutotraySize = autotraySize_ + 1;
-    autotray_ = (Autotray *)realloc(autotray_, sizeof(Autotray) * newAutotraySize);
-    if (!autotray_) {
-        DEBUG_PRINTF("could not allocate %zu window specs\n", newAutotraySize);
-        autotray_ = nullptr;
-        autotraySize_ = 0;
-        return;
-    }
-
-    Autotray & autotray = autotray_[autotraySize_];
-    autotraySize_ = newAutotraySize;
-
-    size_t len = strlen(className) + 1;
-    autotray.className_ = (WCHAR *)malloc(sizeof(WCHAR) * len);
-    if (!autotray.className_) {
-        DEBUG_PRINTF("could not allocate %zu wchars\n", len);
-    } else {
-        if (MultiByteToWideChar(CP_UTF8, 0, className, (int)len, autotray.className_, (int)len) <= 0) {
-            DEBUG_PRINTF("could not convert class name to wide chars\n");
-            free(autotray.className_);
-            autotray.className_ = nullptr;
-        }
-    }
 }
 
 static const char * readFile(LPCTSTR fileName)
@@ -424,7 +325,7 @@ static WCHAR * getExecutablePath()
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*/, _In_ LPSTR /*szCmdLine*/, _In_ int /*iCmdShow*/)
 {
-    _hInstance = hInstance;
+    hInstance_ = hInstance;
 
     WCHAR * exePath = getExecutablePath();
 
@@ -438,18 +339,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
         json = readFile(fileName);
     }
     if (json) {
-        _settings.parseJson(json);
+        settings_.parseJson(json);
         delete[] json;
     }
 
     // get settings from command line (can override json file)
-    _settings.parseCommandLine();
+    settings_.parseCommandLine();
 
     // check for existing RBTray window
-    _hwnd = FindWindow(NAME, NAME);
-    if (_hwnd) {
-        if (_settings.shouldExit_) {
-            SendMessage(_hwnd, WM_CLOSE, 0, 0);
+    hwnd_ = FindWindow(NAME, NAME);
+    if (hwnd_) {
+        if (settings_.shouldExit_) {
+            SendMessage(hwnd_, WM_CLOSE, 0, 0);
         } else {
             MessageBox(NULL, L"RBTray is already running.", L"RBTray", MB_OK | MB_ICONINFORMATION);
         }
@@ -457,14 +358,14 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     }
 
     // load hook dll if enabled
-    if (_settings.useHook_) {
+    if (settings_.useHook_) {
         WCHAR hookDllPath[MAX_PATH];
         _snwprintf_s(hookDllPath, MAX_PATH, L"%s\\%s", exePath, L"RBHook.dll");
-        if (!(_hLib = LoadLibrary(hookDllPath))) {
+        if (!(hLib_ = LoadLibrary(hookDllPath))) {
             MessageBox(NULL, L"Error loading RBHook.dll.", L"RBTray", MB_OK | MB_ICONERROR);
             return 0;
         } else {
-            if (!RegisterHook(_hLib)) {
+            if (!RegisterHook(hLib_)) {
                 MessageBox(NULL, L"Error setting hook procedure.", L"RBTray", MB_OK | MB_ICONERROR);
                 return 0;
             }
@@ -490,18 +391,18 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
         return 0;
     }
 
-    if (!(_hwnd = CreateWindow(NAME, NAME, WS_OVERLAPPED, 0, 0, 0, 0, (HWND)NULL, (HMENU)NULL, (HINSTANCE)hInstance, (LPVOID)NULL))) {
+    if (!(hwnd_ = CreateWindow(NAME, NAME, WS_OVERLAPPED, 0, 0, 0, 0, (HWND)NULL, (HMENU)NULL, (HINSTANCE)hInstance, (LPVOID)NULL))) {
         MessageBox(NULL, L"Error creating window", L"RBTray", MB_OK | MB_ICONERROR);
         return 0;
     }
 
     for (int i = 0; i < MAXTRAYITEMS; i++) {
-        _hwndItems[i] = NULL;
+        hwndItems_[i] = NULL;
     }
 
     WM_TASKBAR_CREATED = RegisterWindowMessage(L"TaskbarCreated");
 
-    BOOL registeredHotKey = RegisterHotKey(_hwnd, 0, MOD_WIN | MOD_ALT, VK_DOWN);
+    BOOL registeredHotKey = RegisterHotKey(hwnd_, 0, MOD_WIN | MOD_ALT, VK_DOWN);
     if (!registeredHotKey) {
         MessageBox(NULL, L"Couldn't register hotkey", L"RBTray", MB_OK | MB_ICONERROR);
     }
@@ -513,7 +414,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     }
 
     if (registeredHotKey) {
-        UnregisterHotKey(_hwnd, 0);
+        UnregisterHotKey(hwnd_, 0);
     }
 
     return (int)msg.wParam;

@@ -20,7 +20,7 @@
 //
 // ****************************************************************************
 
-#include <windows.h>
+#include <Windows.h>
 
 #define NAME L"RBTrayHook"
 
@@ -37,7 +37,7 @@
 
 #define DLLIMPORT __declspec(dllexport)
 
-extern HWND _hwnd;
+extern HWND hwnd_;
 
 BOOL DLLIMPORT RegisterHook(HMODULE);
 void DLLIMPORT UnRegisterHook();

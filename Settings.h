@@ -1,3 +1,4 @@
+#pragma once
 // ****************************************************************************
 //
 // RBTray
@@ -24,12 +25,22 @@
 
 #include <Windows.h>
 
-#define MAXTRAYITEMS 64
+struct Settings
+{
+    Settings();
+    ~Settings();
 
-extern HWND hwndItems_[MAXTRAYITEMS];
+    void parseCommandLine();
+    void parseJson(const char * json);
+    void addAutotray(const char * className);
 
-bool AddToTray(int i);
-void MinimizeWindowToTray(HWND hwnd);
-void RestoreWindowFromTray(HWND hwnd);
-void CloseWindowFromTray(HWND hwnd);
-void RefreshWindowInTray(HWND hwnd);
+    bool shouldExit_;
+    bool useHook_;
+
+    struct Autotray
+    {
+        WCHAR * className_;
+    };
+    Autotray * autotray_;
+    size_t autotraySize_;
+};

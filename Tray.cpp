@@ -24,14 +24,14 @@
 
 #include "RBTray.h"
 
-#include <windows.h>
+#include <Windows.h>
 
-HWND _hwndItems[MAXTRAYITEMS] = { NULL };
+HWND hwndItems_[MAXTRAYITEMS] = { NULL };
 
 static int FindInTray(HWND hwnd)
 {
     for (int i = 0; i < MAXTRAYITEMS; i++) {
-        if (_hwndItems[i] == hwnd) {
+        if (hwndItems_[i] == hwnd) {
             return i;
         }
     }
@@ -62,7 +62,7 @@ static bool AddWindowToTray(HWND hwnd)
     if (i == -1) {
         return false;
     }
-    _hwndItems[i] = hwnd;
+    hwndItems_[i] = hwnd;
     return AddToTray(i);
 }
 
@@ -71,7 +71,7 @@ static bool RemoveFromTray(int i)
     NOTIFYICONDATA nid;
     ZeroMemory(&nid, sizeof(nid));
     nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-    nid.hWnd = _hwnd;
+    nid.hWnd = hwnd_;
     nid.uID = (UINT)i;
     if (!Shell_NotifyIcon(NIM_DELETE, &nid)) {
         return false;
@@ -88,7 +88,7 @@ static bool RemoveWindowFromTray(HWND hwnd)
     if (!RemoveFromTray(i)) {
         return false;
     }
-    _hwndItems[i] = NULL;
+    hwndItems_[i] = NULL;
     return true;
 }
 
@@ -97,12 +97,12 @@ bool AddToTray(int i)
     NOTIFYICONDATA nid;
     ZeroMemory(&nid, sizeof(nid));
     nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-    nid.hWnd = _hwnd;
+    nid.hWnd = hwnd_;
     nid.uID = (UINT)i;
     nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
     nid.uCallbackMessage = WM_TRAYCMD;
-    nid.hIcon = GetWindowIcon(_hwndItems[i]);
-    GetWindowText(_hwndItems[i], nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]));
+    nid.hIcon = GetWindowIcon(hwndItems_[i]);
+    GetWindowText(hwndItems_[i], nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]));
     nid.uVersion = NOTIFYICON_VERSION;
     if (!Shell_NotifyIcon(NIM_ADD, &nid)) {
         return false;
@@ -180,7 +180,7 @@ void RefreshWindowInTray(HWND hwnd)
         NOTIFYICONDATA nid;
         ZeroMemory(&nid, sizeof(nid));
         nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-        nid.hWnd = _hwnd;
+        nid.hWnd = hwnd_;
         nid.uID = (UINT)i;
         nid.uFlags = NIF_TIP;
         GetWindowText(hwnd, nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]));
