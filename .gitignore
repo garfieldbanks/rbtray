@@ -18,3 +18,4 @@
 *.tlog
 *.user
 !/**/RBTray.exe
+/RBTray.args.json

@@ -99,10 +99,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="RBTray.cpp" />
+    <ClCompile Include="Tray.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="RBTray.h" />
     <ClInclude Include="resource.h" />
+    <ClInclude Include="Tray.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="RBTray.ico" />
