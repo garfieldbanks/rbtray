@@ -33,9 +33,9 @@ jobs:
     - name: Archive RBHook.dll
       uses: actions/upload-artifact@v2
       with:
-        path: x64/RBHook.dll
+        path: x64/**/RBHook.dll
 
     - name: Archive RBTray.exe
       uses: actions/upload-artifact@v2
       with:
-        path: x64/RBTray.exe
+        path: x64/**/RBTray.exe
