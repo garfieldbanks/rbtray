@@ -181,10 +181,12 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="cJSON.c" />
     <ClCompile Include="RBTray.cpp" />
     <ClCompile Include="Tray.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="cJSON.h" />
     <ClInclude Include="RBTray.h" />
     <ClInclude Include="resource.h" />
     <ClInclude Include="Tray.h" />
