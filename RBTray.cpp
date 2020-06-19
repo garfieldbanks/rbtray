@@ -38,7 +38,7 @@ static HMODULE hLib_;
 static HWND hwndForMenu_;
 static Settings settings_;
 
-void ExecuteMenu()
+void ExecuteMenu(HWND hwnd)
 {
     HMENU hMenu;
     POINT point;
@@ -50,9 +50,11 @@ void ExecuteMenu()
     }
     AppendMenu(hMenu, MF_STRING, IDM_ABOUT, L"About RBTray");
     AppendMenu(hMenu, MF_STRING, IDM_EXIT, L"Exit RBTray");
-    AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-    AppendMenu(hMenu, MF_STRING, IDM_CLOSE, L"Close Window");
-    AppendMenu(hMenu, MF_STRING, IDM_RESTORE, L"Restore Window");
+    if (hwnd) {
+        AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
+        AppendMenu(hMenu, MF_STRING, IDM_CLOSE, L"Close Window");
+        AppendMenu(hMenu, MF_STRING, IDM_RESTORE, L"Restore Window");
+    }
 
     GetCursorPos(&point);
     SetForegroundWindow(hwnd_);
@@ -159,7 +161,7 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
                 case WM_CONTEXTMENU: {
                     hwndForMenu_ = hwndItems_[wParam];
-                    ExecuteMenu();
+                    ExecuteMenu(hwndForMenu_);
                     break;
                 }
 
@@ -375,18 +377,20 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     delete[] exePath;
     exePath = nullptr;
 
-    WNDCLASS wc;
+    WNDCLASSEX wc;
+    wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = 0;
     wc.lpfnWndProc = HookWndProc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hInstance;
-    wc.hIcon = NULL;
+    wc.hIcon = LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY));
     wc.hCursor = NULL;
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.lpszMenuName = NULL;
     wc.lpszClassName = NAME;
-    if (!RegisterClass(&wc)) {
+    wc.hIconSm = LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY));
+    if (!RegisterClassEx(&wc)) {
         MessageBox(NULL, L"Error creating window class", L"RBTray", MB_OK | MB_ICONERROR);
         return 0;
     }
@@ -407,6 +411,21 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
         MessageBox(NULL, L"Couldn't register hotkey", L"RBTray", MB_OK | MB_ICONERROR);
     }
 
+    if (settings_.trayIcon_) {
+        NOTIFYICONDATA nid;
+        ZeroMemory(&nid, sizeof(nid));
+        nid.cbSize = NOTIFYICONDATA_V2_SIZE;
+        nid.hWnd = hwnd_;
+        nid.uID = (UINT)MAXTRAYITEMS;
+        nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
+        nid.uCallbackMessage = WM_TRAYCMD;
+        nid.hIcon = LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY));
+        GetWindowText(hwnd_, nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]));
+        nid.uVersion = NOTIFYICON_VERSION;
+        Shell_NotifyIcon(NIM_ADD, &nid);
+        Shell_NotifyIcon(NIM_SETVERSION, &nid);
+    }
+
     MSG msg;
     while (GetMessage(&msg, nullptr, 0, 0)) {
         TranslateMessage(&msg);
@@ -415,6 +434,15 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
 
     if (registeredHotKey) {
         UnregisterHotKey(hwnd_, 0);
+    }
+
+    if (settings_.trayIcon_) {
+        NOTIFYICONDATA nid;
+        ZeroMemory(&nid, sizeof(nid));
+        nid.cbSize = NOTIFYICONDATA_V2_SIZE;
+        nid.hWnd = hwnd_;
+        nid.uID = (UINT)MAXTRAYITEMS;
+        Shell_NotifyIcon(NIM_DELETE, &nid);
     }
 
     return (int)msg.wParam;

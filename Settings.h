@@ -35,6 +35,7 @@ struct Settings
     void addAutotray(const char * className);
 
     bool shouldExit_;
+    bool trayIcon_;
     bool useHook_;
 
     struct Autotray

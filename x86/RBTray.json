@@ -1,3 +1,4 @@
 {
-  "hook": true
+  "hook": true,
+  "trayicon": false
 }

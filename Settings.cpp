@@ -25,7 +25,10 @@
 #include "DebugPrint.h"
 #include "cJSON.h"
 
-Settings::Settings() : shouldExit_(false), useHook_(true), autotray_(nullptr), autotraySize_(0) {}
+static bool getBool(const cJSON * cjson, const char * key, bool defaultValue);
+static const char * getString(const cJSON * cjson, const char * key);
+
+Settings::Settings() : shouldExit_(false), trayIcon_(false), useHook_(true), autotray_(nullptr), autotraySize_(0) {}
 
 Settings::~Settings()
 {
@@ -59,14 +62,8 @@ void Settings::parseJson(const char * json)
     const cJSON * cjson = cJSON_Parse(json);
     DEBUG_PRINTF("Parsed settings JSON: %s\n", cJSON_Print(cjson));
 
-    const cJSON * hook = cJSON_GetObjectItemCaseSensitive(cjson, "hook");
-    if (hook) {
-        if (!cJSON_IsBool(hook)) {
-            DEBUG_PRINTF("bad type for '%s'\n", hook->string);
-        } else {
-            useHook_ = cJSON_IsTrue(hook) ? true : false;
-        }
-    }
+    useHook_ = getBool(cjson, "hook", useHook_);
+    trayIcon_ = getBool(cjson, "trayicon", trayIcon_);
 
     const cJSON * autotray = cJSON_GetObjectItemCaseSensitive(cjson, "autotray");
     if (autotray) {
@@ -79,16 +76,9 @@ void Settings::parseJson(const char * json)
                 if (!cJSON_IsObject(item)) {
                     DEBUG_PRINTF("bad type for '%s'\n", item->string);
                 } else {
-                    cJSON * classname = cJSON_GetObjectItemCaseSensitive(item, "classname");
-                    if (!classname) {
-                        DEBUG_PRINTF("missing classname for '%s'\n", item->string);
-                    } else {
-                        const char * classnameStr = cJSON_GetStringValue(classname);
-                        if (!classnameStr) {
-                            DEBUG_PRINTF("bad type for '%s'\n", classname->string);
-                        } else {
-                            addAutotray(classnameStr);
-                        }
+                    const char * str = getString(item, "classname");
+                    if (str) {
+                        addAutotray(str);
                     }
                 }
             }
@@ -121,4 +111,36 @@ void Settings::addAutotray(const char * className)
             autotray.className_ = nullptr;
         }
     }
+}
+
+static bool getBool(const cJSON * cjson, const char * key, bool defaultValue)
+{
+    const cJSON * item = cJSON_GetObjectItemCaseSensitive(cjson, key);
+    if (!item) {
+        return defaultValue;
+    }
+
+    if (!cJSON_IsBool(item)) {
+        DEBUG_PRINTF("bad type for '%s'\n", item->string);
+        return defaultValue;
+    }
+
+    return cJSON_IsTrue(item) ? true : false;
+}
+
+const char * getString(const cJSON * cjson, const char * key)
+{
+    cJSON * item = cJSON_GetObjectItemCaseSensitive(cjson, key);
+    if (!item) {
+        DEBUG_PRINTF("missing key '%s' for '%s'\n", key, item->string);
+        return nullptr;
+    }
+
+    const char * str = cJSON_GetStringValue(item);
+    if (!str) {
+        DEBUG_PRINTF("bad type for '%s'\n", item->string);
+        return nullptr;
+    }
+
+    return str;
 }
