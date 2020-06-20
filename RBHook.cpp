@@ -62,7 +62,7 @@ LRESULT CALLBACK MouseProc(int nCode, WPARAM wParam, LPARAM lParam)
                     // DEBUG_PRINTF("%s(%d): up hit\n", __FUNCTION__, __LINE__);
                     if (info->hwnd == _hLastHit) {
                         // DEBUG_PRINTF("%s(%d): up hit match\n", __FUNCTION__, __LINE__);
-                        PostMessage(FindWindow(NAME, NAME), WM_ADDTRAY, 0, (LPARAM)info->hwnd);
+                        PostMessage(FindWindowW(NAMEW, NAMEW), WM_ADDTRAY, 0, (LPARAM)info->hwnd);
                     }
                     _hLastHit = NULL;
                     return 1;
@@ -89,7 +89,7 @@ LRESULT CALLBACK CallWndProcRet(int nCode, WPARAM wParam, LPARAM lParam)
             case WM_WINDOWPOSCHANGED: {
                 // refresh tray if window became visible
                 if ((((WINDOWPOS *)cwpret->lParam)->flags & SWP_SHOWWINDOW) != 0) {
-                    PostMessage(FindWindow(NAME, NAME), WM_REFRTRAY, 0, (LPARAM)cwpret->hwnd);
+                    PostMessage(FindWindowW(NAMEW, NAMEW), WM_REFRTRAY, 0, (LPARAM)cwpret->hwnd);
                 }
                 break;
             }
@@ -97,7 +97,7 @@ LRESULT CALLBACK CallWndProcRet(int nCode, WPARAM wParam, LPARAM lParam)
             // window about to be destroyed
             case WM_NCDESTROY: {
                 // refresh tray if window destroyed
-                PostMessage(FindWindow(NAME, NAME), WM_REFRTRAY, 0, (LPARAM)cwpret->hwnd);
+                PostMessage(FindWindowW(NAMEW, NAMEW), WM_REFRTRAY, 0, (LPARAM)cwpret->hwnd);
                 break;
             }
 
@@ -107,7 +107,7 @@ LRESULT CALLBACK CallWndProcRet(int nCode, WPARAM wParam, LPARAM lParam)
                 // filter out child windows
                 if (!create->hwndParent) {
                     // notify that a window was created
-                    PostMessage(FindWindow(NAME, NAME), WM_WNDCREATED, 0, (LPARAM)cwpret->hwnd);
+                    PostMessage(FindWindowW(NAMEW, NAMEW), WM_WNDCREATED, 0, (LPARAM)cwpret->hwnd);
                 }
                 break;
             }

@@ -45,15 +45,15 @@ void ExecuteMenu(HWND hwnd)
 
     hMenu = CreatePopupMenu();
     if (!hMenu) {
-        MessageBox(NULL, L"Error creating menu.", L"RBTray", MB_OK | MB_ICONERROR);
+        MessageBoxW(NULL, L"Error creating menu.", L"RBTray", MB_OK | MB_ICONERROR);
         return;
     }
-    AppendMenu(hMenu, MF_STRING, IDM_ABOUT, L"About RBTray");
-    AppendMenu(hMenu, MF_STRING, IDM_EXIT, L"Exit RBTray");
+    AppendMenuW(hMenu, MF_STRING, IDM_ABOUT, L"About RBTray");
+    AppendMenuW(hMenu, MF_STRING, IDM_EXIT, L"Exit RBTray");
     if (hwnd) {
-        AppendMenu(hMenu, MF_SEPARATOR, 0, NULL);
-        AppendMenu(hMenu, MF_STRING, IDM_CLOSE, L"Close Window");
-        AppendMenu(hMenu, MF_STRING, IDM_RESTORE, L"Restore Window");
+        AppendMenuW(hMenu, MF_SEPARATOR, 0, NULL);
+        AppendMenuW(hMenu, MF_STRING, IDM_CLOSE, L"Close Window");
+        AppendMenuW(hMenu, MF_STRING, IDM_RESTORE, L"Restore Window");
     }
 
     GetCursorPos(&point);
@@ -128,11 +128,11 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 #if !defined(NDEBUG)
             WCHAR text[256];
-            GetWindowText(hwnd, text, sizeof(text) / sizeof(text[0]));
+            GetWindowTextW(hwnd, text, sizeof(text) / sizeof(text[0]));
             DEBUG_PRINTF("window text '%ls'\n", text);
 
             WCHAR className[256];
-            GetClassName(hwnd, className, sizeof(className) / sizeof(className[0]));
+            GetClassNameW(hwnd, className, sizeof(className) / sizeof(className[0]));
             DEBUG_PRINTF("window class name '%ls'\n", className);
 #endif
 
@@ -180,12 +180,12 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 if (hwnd != hwnd_) {
 #if !defined(NDEBUG)
                     WCHAR text[256];
-                    GetWindowText(hwnd, text, sizeof(text) / sizeof(text[0]));
+                    GetWindowTextW(hwnd, text, sizeof(text) / sizeof(text[0]));
                     DEBUG_PRINTF("window text '%ls'\n", text);
 #endif
 
                     WCHAR className[256];
-                    GetClassName(hwnd, className, sizeof(className) / sizeof(className[0]));
+                    GetClassNameW(hwnd, className, sizeof(className) / sizeof(className[0]));
                     DEBUG_PRINTF("window class name '%ls'\n", className);
 
                     for (size_t i = 0; i < settings_.autotraySize_; ++i) {
@@ -219,11 +219,11 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
 #if !defined(NDEBUG)
             WCHAR text[256];
-            GetWindowText(hwnd, text, sizeof(text) / sizeof(text[0]));
+            GetWindowTextW(hwnd, text, sizeof(text) / sizeof(text[0]));
             DEBUG_PRINTF("window text '%ls'\n", text);
 
             WCHAR className[256];
-            GetClassName(hwnd, className, sizeof(className) / sizeof(className[0]));
+            GetClassNameW(hwnd, className, sizeof(className) / sizeof(className[0]));
             DEBUG_PRINTF("window class name '%ls'\n", className);
 #endif
 
@@ -261,20 +261,20 @@ LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 
-static const char * readFile(LPCTSTR fileName)
+static const char * readFile(const WCHAR * fileName)
 {
     char * contents = nullptr;
 
-    HANDLE file = CreateFile(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    HANDLE file = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
     if (file == INVALID_HANDLE_VALUE) {
         DEBUG_PRINTF("Could not open '%ls' for reading\n", fileName);
     } else {
         DWORD fileSize = GetFileSize(file, NULL);
-        size_t bufferSize = fileSize + 1;
+        DWORD bufferSize = fileSize + 1;
         char * buffer = new char[bufferSize];
         buffer[bufferSize - 1] = '\0';
         if (!buffer) {
-            DEBUG_PRINTF("Could not allocate buffer size %zu for reading\n", bufferSize);
+            DEBUG_PRINTF("Could not allocate buffer size %d for reading\n", bufferSize);
         } else {
             DWORD bytesRead = 0;
             if (!ReadFile(file, buffer, fileSize, &bytesRead, NULL)) {
@@ -301,7 +301,7 @@ static const char * readFile(LPCTSTR fileName)
 static WCHAR * getExecutablePath()
 {
     WCHAR path[MAX_PATH];
-    if (GetModuleFileName(NULL, path, MAX_PATH) <= 0) {
+    if (GetModuleFileNameW(NULL, path, MAX_PATH) <= 0) {
         DEBUG_PRINTF("GetModuleFileName() failed\n");
         return nullptr;
     }
@@ -349,12 +349,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     settings_.parseCommandLine();
 
     // check for existing RBTray window
-    hwnd_ = FindWindow(NAME, NAME);
+    hwnd_ = FindWindowW(NAMEW, NAMEW);
     if (hwnd_) {
         if (settings_.shouldExit_) {
             SendMessage(hwnd_, WM_CLOSE, 0, 0);
         } else {
-            MessageBox(NULL, L"RBTray is already running.", L"RBTray", MB_OK | MB_ICONINFORMATION);
+            MessageBoxW(NULL, L"RBTray is already running.", L"RBTray", MB_OK | MB_ICONINFORMATION);
         }
         return 0;
     }
@@ -363,7 +363,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     if (settings_.useHook_) {
         WCHAR hookDllPath[MAX_PATH];
         _snwprintf_s(hookDllPath, MAX_PATH, L"%s\\%s", exePath, L"RBHook.dll");
-        if (!(hLib_ = LoadLibrary(hookDllPath))) {
+        if (!(hLib_ = LoadLibraryW(hookDllPath))) {
             DEBUG_PRINTF("error loading RBHook.dll\n");
         } else {
             if (!RegisterHook(hLib_)) {
@@ -389,12 +389,12 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     wc.lpszClassName = NAME;
     wc.hIconSm = LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY));
     if (!RegisterClassEx(&wc)) {
-        MessageBox(NULL, L"Error creating window class", L"RBTray", MB_OK | MB_ICONERROR);
+        MessageBoxW(NULL, L"Error creating window class", L"RBTray", MB_OK | MB_ICONERROR);
         return 0;
     }
 
-    if (!(hwnd_ = CreateWindow(NAME, NAME, WS_OVERLAPPED, 0, 0, 0, 0, (HWND)NULL, (HMENU)NULL, (HINSTANCE)hInstance, (LPVOID)NULL))) {
-        MessageBox(NULL, L"Error creating window", L"RBTray", MB_OK | MB_ICONERROR);
+    if (!(hwnd_ = CreateWindowW(NAMEW, NAMEW, WS_OVERLAPPED, 0, 0, 0, 0, (HWND)NULL, (HMENU)NULL, (HINSTANCE)hInstance, (LPVOID)NULL))) {
+        MessageBoxW(NULL, L"Error creating window", L"RBTray", MB_OK | MB_ICONERROR);
         return 0;
     }
 
@@ -402,11 +402,11 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
         hwndItems_[i] = NULL;
     }
 
-    WM_TASKBAR_CREATED = RegisterWindowMessage(L"TaskbarCreated");
+    WM_TASKBAR_CREATED = RegisterWindowMessageW(L"TaskbarCreated");
 
     BOOL registeredHotKey = RegisterHotKey(hwnd_, 0, MOD_WIN | MOD_ALT, VK_DOWN);
     if (!registeredHotKey) {
-        MessageBox(NULL, L"Couldn't register hotkey", L"RBTray", MB_OK | MB_ICONERROR);
+        MessageBoxW(NULL, L"Couldn't register hotkey", L"RBTray", MB_OK | MB_ICONERROR);
     }
 
     if (settings_.trayIcon_) {
