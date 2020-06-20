@@ -5,6 +5,8 @@ on:
     branches: [ master ]
   pull_request:
     branches: [ master ]
+  repository_dispatch:
+    branches: [ master ]
 
 jobs:
   build:
@@ -18,17 +20,24 @@ jobs:
     - name: Add MSBuild to path
       uses: microsoft/setup-msbuild@v1.0.0
 
-    - name: Configure CMake Debug
-      run: mkdir build && cd build && mkdir Debug && cd Debug && cmake ../..
+    - name: Build
+      run: |
+        mkdir build
+        cd build
 
-    - name: Build Debug
-      run: cd build/Release && msbuild RBTray.sln -p:Configuration=Debug -maxcpucount
+        mkdir Debug
+        cd Debug
+        cmake ../..
+        msbuild RBTray.sln -p:Configuration=Debug -maxcpucount
+        cd ..
 
-    - name: Configure CMake Release
-      run: mkdir build && cd build && mkdir Release && cd Release && cmake ../..
+        mkdir Release
+        cd Release
+        cmake ../..
+        msbuild RBTray.sln -p:Configuration=Release -maxcpucount
+        cd ..
 
-    - name: Build Release
-      run: cd build/Release && msbuild RBTray.sln -p:Configuration=Release -maxcpucount
+        cd ..
 
     - name: Archive RBHook.dll
       uses: actions/upload-artifact@v2
