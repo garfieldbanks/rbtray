@@ -18,12 +18,6 @@ jobs:
     - name: Add MSBuild to path
       uses: microsoft/setup-msbuild@v1.0.0
 
-    - name: Install Windows 8.1 SDK
-      shell: powershell
-      run: |
-        Invoke-WebRequest -Method Get -Uri https://go.microsoft.com/fwlink/p/?LinkId=323507 -OutFile sdksetup.exe -UseBasicParsing
-        Start-Process -Wait sdksetup.exe -ArgumentList "/q", "/norestart", "/features", "OptionId.WindowsDesktopSoftwareDevelopmentKit", "OptionId.NetFxSoftwareDevelopmentKit"
-
     - name: Build Debug
       run: msbuild RBTray.sln -p:Configuration=Debug -maxcpucount
 
