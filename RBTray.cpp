@@ -364,12 +364,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
         WCHAR hookDllPath[MAX_PATH];
         _snwprintf_s(hookDllPath, MAX_PATH, L"%s\\%s", exePath, L"RBHook.dll");
         if (!(hLib_ = LoadLibrary(hookDllPath))) {
-            MessageBox(NULL, L"Error loading RBHook.dll.", L"RBTray", MB_OK | MB_ICONERROR);
-            return 0;
+            DEBUG_PRINTF("error loading RBHook.dll\n");
         } else {
             if (!RegisterHook(hLib_)) {
-                MessageBox(NULL, L"Error setting hook procedure.", L"RBTray", MB_OK | MB_ICONERROR);
-                return 0;
+                DEBUG_PRINTF("error setting hook procedure\n");
             }
         }
     }
