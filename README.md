@@ -19,6 +19,8 @@ The latest binaries can be downloaded by going to the
 the list. You should see an "artifact" link that will download a zip file that contains both Debug and Release builds of
 RBTray.
 
+![Build](https://github.com/benbuck/rbtray/workflows/Build/badge.svg)
+
 Not that RBTray previously had separate 32 and 64 bit binary builds, but now only has 64 bit. If you really need the 32
 bit version, please let me know.
 
