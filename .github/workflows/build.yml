@@ -19,13 +19,13 @@ jobs:
       uses: microsoft/setup-msbuild@v1.0.0
 
     - name: Configure CMake Debug
-      run: mkdir build && cd build && mkdir Debug && cd Debug && cmake ..
+      run: mkdir build && cd build && mkdir Debug && cd Debug && cmake ../..
 
     - name: Build Debug
       run: cd build/Release && msbuild RBTray.sln -p:Configuration=Debug -maxcpucount
 
     - name: Configure CMake Release
-      run: mkdir build && cd build && mkdir Release && cd Release && cmake ..
+      run: mkdir build && cd build && mkdir Release && cd Release && cmake ../..
 
     - name: Build Release
       run: cd build/Release && msbuild RBTray.sln -p:Configuration=Release -maxcpucount
