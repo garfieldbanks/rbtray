@@ -18,18 +18,24 @@ jobs:
     - name: Add MSBuild to path
       uses: microsoft/setup-msbuild@v1.0.0
 
+    - name: Configure CMake Debug
+      run: mkdir build && cd build && mkdir Debug && cd Debug && cmake ..
+
     - name: Build Debug
-      run: msbuild RBTray.sln -p:Configuration=Debug -maxcpucount
+      run: cd build/Release && msbuild RBTray.sln -p:Configuration=Debug -maxcpucount
+
+    - name: Configure CMake Release
+      run: mkdir build && cd build && mkdir Release && cd Release && cmake ..
 
     - name: Build Release
-      run: msbuild RBTray.sln -p:Configuration=Release -maxcpucount
+      run: cd build/Release && msbuild RBTray.sln -p:Configuration=Release -maxcpucount
 
     - name: Archive RBHook.dll
       uses: actions/upload-artifact@v2
       with:
-        path: x64/**/RBHook.dll
+        path: build/**/RBHook.dll
 
     - name: Archive RBTray.exe
       uses: actions/upload-artifact@v2
       with:
-        path: x64/**/RBTray.exe
+        path: build/**/RBTray.exe

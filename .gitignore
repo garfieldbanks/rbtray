@@ -1,6 +1,2 @@
 /.vs
-*.sdf
-*.suo
-*.user
-/RBTray.args.json
-/x64
+/build
