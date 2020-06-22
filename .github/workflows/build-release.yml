@@ -24,9 +24,11 @@ jobs:
     - name: Archive RBHook.dll
       uses: actions/upload-artifact@v2
       with:
-        path: build/**/RBHook.dll
+        name: RBHook.dll
+        path: build/vstudio/Release/RBHook.dll
 
     - name: Archive RBTray.exe
       uses: actions/upload-artifact@v2
       with:
-        path: build/**/RBTray.exe
+        name: RBTray.exe
+        path: build/vstudio/Release/RBTray.exe
