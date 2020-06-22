@@ -419,7 +419,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
 
     TrayIcon trayIcon;
     if (settings_.trayIcon_) {
-        trayIcon.create(hwnd_, WM_TRAYCMD, LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY)));
+        if (!trayIcon.create(hwnd_, WM_TRAYCMD, LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY)))) {
+            MessageBoxW(NULL, L"Couldn't create tray icon", L"RBTray", MB_OK | MB_ICONERROR);
+        }
     }
 
     MSG msg;

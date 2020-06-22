@@ -29,8 +29,13 @@ static volatile LONG id_;
 TrayIcon::TrayIcon() { ZeroMemory(&nid_, sizeof(nid_)); }
 TrayIcon::~TrayIcon() { destroy(); }
 
-void TrayIcon::create(HWND hwnd, UINT msg, HICON icon)
+bool TrayIcon::create(HWND hwnd, UINT msg, HICON icon)
 {
+    if (nid_.uID) {
+        DEBUG_PRINTF("attempt to re-create tray icon\n");
+        return false;
+    }
+
     LONG id = InterlockedIncrement(&id_);
 
     ZeroMemory(&nid_, sizeof(nid_));
@@ -45,11 +50,17 @@ void TrayIcon::create(HWND hwnd, UINT msg, HICON icon)
 
     if (!Shell_NotifyIcon(NIM_ADD, &nid_)) {
         DEBUG_PRINTF("Shell_NotifyIcon(NIM_ADD) failed\n");
+        ZeroMemory(&nid_, sizeof(nid_));
+        return false;
     }
 
     if (!Shell_NotifyIcon(NIM_SETVERSION, &nid_)) {
         DEBUG_PRINTF("Shell_NotifyIcon(NIM_SETVERSION) failed\n");
+        destroy();
+        return false;
     }
+
+    return true;
 }
 
 void TrayIcon::destroy()
@@ -57,7 +68,6 @@ void TrayIcon::destroy()
     if (nid_.uID) {
         if (!Shell_NotifyIcon(NIM_DELETE, &nid_)) {
             DEBUG_PRINTF("Shell_NotifyIcon(NIM_DELETE) failed\n");
-            return;
         }
 
         ZeroMemory(&nid_, sizeof(nid_));

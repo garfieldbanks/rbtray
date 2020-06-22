@@ -30,7 +30,7 @@ public:
     TrayIcon();
     ~TrayIcon();
 
-    void create(HWND hwnd, UINT msg, HICON icon);
+    bool create(HWND hwnd, UINT msg, HICON icon);
     void destroy();
 
 private:
