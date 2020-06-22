@@ -49,11 +49,11 @@ Right click on any tray icon created by RBTray and click Exit RBTray in the popu
 
 For original version, please see the [RBTray SourceForge project page](http://sourceforge.net/projects/rbtray/).
 
-Nikolay Redko: http://rbtray.sourceforge.net/, https://github.com/nredko
+Nikolay Redko: [http://rbtray.sourceforge.net/], [https://github.com/nredko]
 
-J.D. Purcell: http://www.moitah.net/, https://github.com/jdpurcell
+J.D. Purcell: [http://www.moitah.net/], [https://github.com/jdpurcell]
 
-Benbuck Nason: https://github.com/benbuck
+Benbuck Nason: [https://github.com/benbuck]
 
 ## Legal
 
