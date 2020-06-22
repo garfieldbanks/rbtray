@@ -24,10 +24,7 @@ jobs:
     - name: Archive portable
       uses: actions/upload-artifact@v2
       with:
-        name: portable
-        path: |
-          build/vstudio/Release/RBHook.dll
-          build/vstudio/Release/RBTray.exe
+        path: build/vstudio/Release/RB[HT][or][oa][ky].[de][lx][le]
 
     - name: Archive installer
       uses: actions/upload-artifact@v2
