@@ -31,6 +31,7 @@ pushd %BUILDDIR%
 
 cmake ..\..
 cmake --build . --config %CONFIG%%
-cpack
+
+if "%CONFIG%"=="Release" cpack
 
 popd
