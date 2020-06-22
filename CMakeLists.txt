@@ -22,7 +22,10 @@
 
 cmake_minimum_required(VERSION 3.17)
 
-project(RBTray)
+project(
+    RBTray
+    VERSION 4.11
+)
 
 add_library(
     RBHook
@@ -48,6 +51,24 @@ add_executable(
 )
 
 target_link_libraries(RBTray RBHook)
+
+install(
+    TARGETS RBTray
+    RUNTIME DESTINATION . COMPONENT Runtime
+)
+
+install(
+    TARGETS RBHook
+    RUNTIME DESTINATION . COMPONENT Runtime
+)
+
+set(CPACK_GENERATOR "NSIS64")
+set(CPACK_NSIS_INSTALLED_ICON_NAME "RBTray.exe")
+set(CPACK_NSIS_HELP_LINK "https://github.com/benbuck/rbtray/")
+set(CPACK_PACKAGE_INSTALL_DIRECTORY "RBTray")
+set(CPACK_PACKAGE_VENDOR "Benbuck Nason")
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_SOURCE_DIR}/LICENSE.txt")
+include(CPack)
 
 if(CMAKE_GENERATOR MATCHES "^Visual Studio.*")
     set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RBTray)
