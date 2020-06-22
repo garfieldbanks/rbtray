@@ -31,5 +31,6 @@ pushd %BUILDDIR%
 
 cmake ..\..
 cmake --build . --config %CONFIG%%
+cpack
 
 popd

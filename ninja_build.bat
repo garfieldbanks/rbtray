@@ -31,5 +31,6 @@ pushd %BUILDDIR%
 
 cmake ..\..\.. -G Ninja -DCMAKE_BUILD_TYPE=%CONFIG%
 cmake --build .
+cpack
 
 popd
