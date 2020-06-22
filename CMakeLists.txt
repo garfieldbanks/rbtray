@@ -30,24 +30,24 @@ project(
 add_library(
     RBHook
     SHARED
-    RBHook.cpp
+    src/RBHook.cpp
 )
 
 add_executable(
     RBTray
     WIN32
-    cJSON.c
-    cJSON.h
-    DebugPrint.h
-    RBTray.cpp
-    RBTray.h
-    RBTray.ico
-    RBTray.rc
-    resource.h
-    Settings.cpp
-    Settings.h
-    Tray.cpp
-    Tray.h
+    src/cJSON.c
+    src/cJSON.h
+    src/DebugPrint.h
+    src/RBTray.cpp
+    src/RBTray.h
+    src/RBTray.ico
+    src/RBTray.rc
+    src/resource.h
+    src/Settings.cpp
+    src/Settings.h
+    src/Tray.cpp
+    src/Tray.h
 )
 
 target_link_libraries(RBTray RBHook)
