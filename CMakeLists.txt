@@ -48,6 +48,8 @@ add_executable(
     src/Settings.h
     src/Tray.cpp
     src/Tray.h
+    src/TrayIcon.cpp
+    src/TrayIcon.h
 )
 
 target_link_libraries(RBTray RBHook)

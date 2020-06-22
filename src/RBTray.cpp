@@ -25,6 +25,7 @@
 #include "DebugPrint.h"
 #include "Settings.h"
 #include "Tray.h"
+#include "TrayIcon.h"
 #include "resource.h"
 
 #include <Windows.h>
@@ -409,19 +410,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
         MessageBoxW(NULL, L"Couldn't register hotkey", L"RBTray", MB_OK | MB_ICONERROR);
     }
 
+    TrayIcon trayIcon;
     if (settings_.trayIcon_) {
-        NOTIFYICONDATA nid;
-        ZeroMemory(&nid, sizeof(nid));
-        nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-        nid.hWnd = hwnd_;
-        nid.uID = (UINT)MAXTRAYITEMS;
-        nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-        nid.uCallbackMessage = WM_TRAYCMD;
-        nid.hIcon = LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY));
-        GetWindowText(hwnd_, nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]));
-        nid.uVersion = NOTIFYICON_VERSION;
-        Shell_NotifyIcon(NIM_ADD, &nid);
-        Shell_NotifyIcon(NIM_SETVERSION, &nid);
+        trayIcon.create(hwnd_, LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY)), WM_TRAYCMD);
     }
 
     MSG msg;
@@ -435,12 +426,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     }
 
     if (settings_.trayIcon_) {
-        NOTIFYICONDATA nid;
-        ZeroMemory(&nid, sizeof(nid));
-        nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-        nid.hWnd = hwnd_;
-        nid.uID = (UINT)MAXTRAYITEMS;
-        Shell_NotifyIcon(NIM_DELETE, &nid);
+        trayIcon.destroy();
     }
 
     return (int)msg.wParam;
