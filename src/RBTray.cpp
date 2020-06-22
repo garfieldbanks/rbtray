@@ -96,7 +96,7 @@ BOOL CALLBACK AboutDlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
     return TRUE;
 }
 
-LRESULT CALLBACK HookWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
         case WM_COMMAND: {
@@ -379,7 +379,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     WNDCLASSEX wc;
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = 0;
-    wc.lpfnWndProc = HookWndProc;
+    wc.lpfnWndProc = WndProc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hInstance;
