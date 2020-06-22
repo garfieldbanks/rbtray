@@ -35,11 +35,82 @@ static UINT WM_TASKBAR_CREATED;
 HWND hwnd_ = NULL;
 
 static HINSTANCE hInstance_;
-static HMODULE hLib_;
+static HMODULE hookDll_;
 static HWND hwndForMenu_;
 static Settings settings_;
 
-void ExecuteMenu(HWND hwnd)
+static WCHAR * getExecutablePath();
+static const char * readFile(const WCHAR * fileName);
+static void showContextMenu(HWND hwnd);
+static BOOL CALLBACK aboutDialogProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam);
+static LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
+static int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPSTR szCmdLine, _In_ int iCmdShow);
+
+WCHAR * getExecutablePath()
+{
+    WCHAR path[MAX_PATH];
+    if (GetModuleFileNameW(NULL, path, MAX_PATH) <= 0) {
+        DEBUG_PRINTF("GetModuleFileName() failed\n");
+        return nullptr;
+    }
+
+    WCHAR * sep = wcsrchr(path, L'\\');
+    if (!sep) {
+        DEBUG_PRINTF("path has no separator\n");
+        return nullptr;
+    }
+
+    *sep = L'\0';
+
+    size_t pathChars = sep - path + 1;
+    WCHAR * exePath = new WCHAR[pathChars];
+    if (!exePath) {
+        DEBUG_PRINTF("could not allocate %zu chars\n", pathChars);
+        return nullptr;
+    }
+
+    wcsncpy_s(exePath, pathChars, path, pathChars - 1);
+    return exePath;
+}
+
+const char * readFile(const WCHAR * fileName)
+{
+    char * contents = nullptr;
+
+    HANDLE file = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+    if (file == INVALID_HANDLE_VALUE) {
+        DEBUG_PRINTF("Could not open '%ls' for reading\n", fileName);
+    } else {
+        DWORD fileSize = GetFileSize(file, NULL);
+        DWORD bufferSize = fileSize + 1;
+        char * buffer = new char[bufferSize];
+        buffer[bufferSize - 1] = '\0';
+        if (!buffer) {
+            DEBUG_PRINTF("Could not allocate buffer size %d for reading\n", bufferSize);
+        } else {
+            DWORD bytesRead = 0;
+            if (!ReadFile(file, buffer, fileSize, &bytesRead, NULL)) {
+                DEBUG_PRINTF("Could not read %d bytes from '%ls'\n", fileSize, fileName);
+                delete[] buffer;
+                buffer = nullptr;
+            } else {
+                if (bytesRead < fileSize) {
+                    DEBUG_PRINTF("Only read %d bytes from '%ls', expected %d\n", bytesRead, fileName, fileSize);
+                    delete[] buffer;
+                    buffer = nullptr;
+                } else {
+                    contents = buffer;
+                }
+            }
+        }
+
+        CloseHandle(file);
+    }
+
+    return contents;
+}
+
+void showContextMenu(HWND hwnd)
 {
     HMENU hMenu;
     POINT point;
@@ -66,7 +137,7 @@ void ExecuteMenu(HWND hwnd)
     DestroyMenu(hMenu);
 }
 
-BOOL CALLBACK AboutDlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
+BOOL CALLBACK aboutDialogProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
 {
     switch (Msg) {
         case WM_CLOSE: {
@@ -96,7 +167,7 @@ BOOL CALLBACK AboutDlgProc(HWND hWnd, UINT Msg, WPARAM wParam, LPARAM lParam)
     return TRUE;
 }
 
-LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
     switch (msg) {
         case WM_COMMAND: {
@@ -112,7 +183,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                 }
 
                 case IDM_ABOUT: {
-                    DialogBox(hInstance_, MAKEINTRESOURCE(IDD_ABOUT), hwnd_, (DLGPROC)AboutDlgProc);
+                    DialogBox(hInstance_, MAKEINTRESOURCE(IDD_ABOUT), hwnd_, (DLGPROC)aboutDialogProc);
                     break;
                 }
 
@@ -162,7 +233,7 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 
                 case WM_CONTEXTMENU: {
                     hwndForMenu_ = hwndItems_[wParam];
-                    ExecuteMenu(hwndForMenu_);
+                    showContextMenu(hwndForMenu_);
                     break;
                 }
 
@@ -239,9 +310,9 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                     RestoreWindowFromTray(hwndItems_[i]);
                 }
             }
-            if (hLib_) {
+            if (hookDll_) {
                 UnRegisterHook();
-                FreeLibrary(hLib_);
+                FreeLibrary(hookDll_);
             }
             PostQuitMessage(0);
             break;
@@ -260,70 +331,6 @@ LRESULT CALLBACK WndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     }
 
     return DefWindowProc(hwnd, msg, wParam, lParam);
-}
-
-static const char * readFile(const WCHAR * fileName)
-{
-    char * contents = nullptr;
-
-    HANDLE file = CreateFileW(fileName, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-    if (file == INVALID_HANDLE_VALUE) {
-        DEBUG_PRINTF("Could not open '%ls' for reading\n", fileName);
-    } else {
-        DWORD fileSize = GetFileSize(file, NULL);
-        DWORD bufferSize = fileSize + 1;
-        char * buffer = new char[bufferSize];
-        buffer[bufferSize - 1] = '\0';
-        if (!buffer) {
-            DEBUG_PRINTF("Could not allocate buffer size %d for reading\n", bufferSize);
-        } else {
-            DWORD bytesRead = 0;
-            if (!ReadFile(file, buffer, fileSize, &bytesRead, NULL)) {
-                DEBUG_PRINTF("Could not read %d bytes from '%ls'\n", fileSize, fileName);
-                delete[] buffer;
-                buffer = nullptr;
-            } else {
-                if (bytesRead < fileSize) {
-                    DEBUG_PRINTF("Only read %d bytes from '%ls', expected %d\n", bytesRead, fileName, fileSize);
-                    delete[] buffer;
-                    buffer = nullptr;
-                } else {
-                    contents = buffer;
-                }
-            }
-        }
-
-        CloseHandle(file);
-    }
-
-    return contents;
-}
-
-static WCHAR * getExecutablePath()
-{
-    WCHAR path[MAX_PATH];
-    if (GetModuleFileNameW(NULL, path, MAX_PATH) <= 0) {
-        DEBUG_PRINTF("GetModuleFileName() failed\n");
-        return nullptr;
-    }
-
-    WCHAR * sep = wcsrchr(path, L'\\');
-    if (!sep) {
-        DEBUG_PRINTF("path has no separator\n");
-        return nullptr;
-    }
-
-    *sep = L'\0';
-
-    size_t pathChars = sep - path + 1;
-    WCHAR * exePath = new WCHAR[pathChars];
-    if (!exePath) {
-        DEBUG_PRINTF("could not allocate %zu chars\n", pathChars);
-        return nullptr;
-    }
-
-    wcsncpy_s(exePath, pathChars, path, pathChars - 1);
-    return exePath;
 }
 
 int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*/, _In_ LPSTR /*szCmdLine*/, _In_ int /*iCmdShow*/)
@@ -364,10 +371,10 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     if (settings_.useHook_) {
         WCHAR hookDllPath[MAX_PATH];
         _snwprintf_s(hookDllPath, MAX_PATH, L"%s\\%s", exePath, L"RBHook.dll");
-        if (!(hLib_ = LoadLibraryW(hookDllPath))) {
+        if (!(hookDll_ = LoadLibraryW(hookDllPath))) {
             DEBUG_PRINTF("error loading RBHook.dll\n");
         } else {
-            if (!RegisterHook(hLib_)) {
+            if (!RegisterHook(hookDll_)) {
                 DEBUG_PRINTF("error setting hook procedure\n");
             }
         }
@@ -379,7 +386,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     WNDCLASSEX wc;
     wc.cbSize = sizeof(WNDCLASSEX);
     wc.style = 0;
-    wc.lpfnWndProc = WndProc;
+    wc.lpfnWndProc = mainWndProc;
     wc.cbClsExtra = 0;
     wc.cbWndExtra = 0;
     wc.hInstance = hInstance;
