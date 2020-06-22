@@ -27,6 +27,8 @@
 
 static bool getBool(const cJSON * cjson, const char * key, bool defaultValue);
 static const char * getString(const cJSON * cjson, const char * key);
+static void iterateArray(const cJSON * cjson, bool (* callback)(const cJSON *, void *), void *);
+static bool classnameItemCallback(const cJSON * cjson, void * userData);
 
 Settings::Settings() : shouldExit_(false), trayIcon_(false), useHook_(true), autotray_(nullptr), autotraySize_(0) {}
 
@@ -57,6 +59,21 @@ void Settings::parseCommandLine()
     }
 }
 
+static bool callback(const cJSON * item, void * userData)
+{
+    if (!cJSON_IsObject(item)) {
+        DEBUG_PRINTF("bad type for '%s'\n", item->string);
+        return false;
+    }
+
+    const char * str = getString(item, "classname");
+    if (str) {
+        Settings * thisPtr = (Settings *)userData;
+        thisPtr->addAutotray(str);
+    }
+    return false;
+}
+
 void Settings::parseJson(const char * json)
 {
     const cJSON * cjson = cJSON_Parse(json);
@@ -67,22 +84,7 @@ void Settings::parseJson(const char * json)
 
     const cJSON * autotray = cJSON_GetObjectItemCaseSensitive(cjson, "autotray");
     if (autotray) {
-        if (!cJSON_IsArray(autotray)) {
-            DEBUG_PRINTF("bad type for '%s'\n", autotray->string);
-        } else {
-            int arrSize = cJSON_GetArraySize(autotray);
-            for (int i = 0; i < arrSize; ++i) {
-                const cJSON * item = cJSON_GetArrayItem(autotray, i);
-                if (!cJSON_IsObject(item)) {
-                    DEBUG_PRINTF("bad type for '%s'\n", item->string);
-                } else {
-                    const char * str = getString(item, "classname");
-                    if (str) {
-                        addAutotray(str);
-                    }
-                }
-            }
-        }
+        iterateArray(autotray, classnameItemCallback, this);
     }
 }
 
@@ -113,7 +115,7 @@ void Settings::addAutotray(const char * className)
     }
 }
 
-static bool getBool(const cJSON * cjson, const char * key, bool defaultValue)
+bool getBool(const cJSON * cjson, const char * key, bool defaultValue)
 {
     const cJSON * item = cJSON_GetObjectItemCaseSensitive(cjson, key);
     if (!item) {
@@ -143,4 +145,34 @@ const char * getString(const cJSON * cjson, const char * key)
     }
 
     return str;
+}
+
+void iterateArray(const cJSON * cjson, bool (*callback)(const cJSON *, void *), void * userData)
+{
+    if (!cJSON_IsArray(cjson)) {
+        DEBUG_PRINTF("bad type for '%s'\n", cjson->string);
+    } else {
+        int arrSize = cJSON_GetArraySize(cjson);
+        for (int i = 0; i < arrSize; ++i) {
+            const cJSON * item = cJSON_GetArrayItem(cjson, i);
+            if (!callback(item, userData)) {
+                break;
+            }
+        }
+    }
+}
+
+bool classnameItemCallback(const cJSON * cjson, void * userData)
+{
+    if (!cJSON_IsObject(cjson)) {
+        DEBUG_PRINTF("bad type for '%s'\n", cjson->string);
+        return false;
+    }
+
+    const char * str = getString(cjson, "classname");
+    if (str) {
+        Settings * thisPtr = (Settings *)userData;
+        thisPtr->addAutotray(str);
+    }
+    return false;
 }
