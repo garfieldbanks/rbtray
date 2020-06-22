@@ -1,11 +1,9 @@
-name: Build
+name: Build Release
 
 on:
   push:
     branches: [ master ]
   pull_request:
-    branches: [ master ]
-  repository_dispatch:
     branches: [ master ]
 
 jobs:
@@ -21,23 +19,7 @@ jobs:
       uses: microsoft/setup-msbuild@v1.0.0
 
     - name: Build
-      run: |
-        mkdir build
-        cd build
-
-        mkdir Debug
-        cd Debug
-        cmake ../..
-        msbuild RBTray.sln -p:Configuration=Debug -maxcpucount
-        cd ..
-
-        mkdir Release
-        cd Release
-        cmake ../..
-        msbuild RBTray.sln -p:Configuration=Release -maxcpucount
-        cd ..
-
-        cd ..
+      run: .\vstudio_build.bat Release
 
     - name: Archive RBHook.dll
       uses: actions/upload-artifact@v2
