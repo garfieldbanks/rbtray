@@ -21,15 +21,19 @@ jobs:
     - name: Build
       run: .\vstudio_build.bat Release
 
-    - name: Archive portable
+    - name: Archive RBHook.dll
       uses: actions/upload-artifact@v2
       with:
-        path: |
-          build/vstudio/Debug/RBHook.dll
-          build/vstudio/Debug/RBTray.exe
+        name: RBHook.dll
+        path: build/vstudio/Release/RBHook.dll
+
+    - name: Archive RBTray.exe
+      uses: actions/upload-artifact@v2
+      with:
+        name: RBTray.exe
+        path: build/vstudio/Release/RBTray.exe
 
     - name: Archive installer
       uses: actions/upload-artifact@v2
       with:
         path: build/vstudio/RBTray-*-win64.exe
-
