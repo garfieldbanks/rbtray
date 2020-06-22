@@ -24,6 +24,7 @@ jobs:
     - name: Archive portable
       uses: actions/upload-artifact@v2
       with:
+        name: RBTray.zip
         path: |
           build/vstudio/Debug/RBHook.dll
           build/vstudio/Debug/RBTray.exe
