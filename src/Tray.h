@@ -24,12 +24,10 @@
 
 #include <Windows.h>
 
-#define MAXTRAYITEMS 64
-
-extern HWND hwndItems_[MAXTRAYITEMS];
-
-bool AddToTray(int i);
-void MinimizeWindowToTray(HWND hwnd);
+void MinimizeWindowToTray(HWND hwnd, HWND messageWnd);
 void RestoreWindowFromTray(HWND hwnd);
 void CloseWindowFromTray(HWND hwnd);
 void RefreshWindowInTray(HWND hwnd);
+void AddAllWindowsToTray();
+void RestoreAllWindowsFromTray();
+HWND GetWindowFromID(UINT id);

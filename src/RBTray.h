@@ -38,7 +38,5 @@
 
 #define DLLIMPORT __declspec(dllexport)
 
-extern HWND hwnd_;
-
 BOOL DLLIMPORT RegisterHook(HMODULE);
 void DLLIMPORT UnRegisterHook();

@@ -32,12 +32,11 @@
 
 static UINT WM_TASKBAR_CREATED;
 
-HWND hwnd_ = NULL;
-
 static HINSTANCE hInstance_;
+static HWND hwnd_ = NULL;
 static HMODULE hookDll_;
-static HWND hwndForMenu_;
 static Settings settings_;
+static HWND hwndForMenu_;
 
 static WCHAR * getExecutablePath();
 static const char * readFile(const WCHAR * fileName);
@@ -120,6 +119,7 @@ void showContextMenu(HWND hwnd)
         MessageBoxW(NULL, L"Error creating menu.", L"RBTray", MB_OK | MB_ICONERROR);
         return;
     }
+
     AppendMenuW(hMenu, MF_STRING, IDM_ABOUT, L"About RBTray");
     AppendMenuW(hMenu, MF_STRING, IDM_EXIT, L"Exit RBTray");
     if (hwnd) {
@@ -208,7 +208,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             DEBUG_PRINTF("window class name '%ls'\n", className);
 #endif
 
-            MinimizeWindowToTray(hwnd);
+            MinimizeWindowToTray(hwnd, hwnd_);
             break;
         }
 
@@ -227,18 +227,20 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
         case WM_TRAYCMD: {
             switch ((UINT)lParam) {
                 case NIN_SELECT: {
-                    RestoreWindowFromTray(hwndItems_[wParam]);
+                    HWND hwnd = GetWindowFromID(wParam);
+                    RestoreWindowFromTray(hwnd);
                     break;
                 }
 
                 case WM_CONTEXTMENU: {
-                    hwndForMenu_ = hwndItems_[wParam];
+                    hwndForMenu_ = GetWindowFromID(wParam);
                     showContextMenu(hwndForMenu_);
                     break;
                 }
 
                 case WM_MOUSEMOVE: {
-                    RefreshWindowInTray(hwndItems_[wParam]);
+                    HWND hwnd = GetWindowFromID(wParam);
+                    RefreshWindowInTray(hwnd);
                     break;
                 }
             }
@@ -267,7 +269,7 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
                             if (wcsstr(className, autotray.className_)) {
                                 DEBUG_PRINTF("auto-traying window '%ls'\n", className);
                                 Sleep(1000); // FIX - terrible hack
-                                MinimizeWindowToTray(hwnd);
+                                MinimizeWindowToTray(hwnd, hwnd_);
                                 break;
                             }
                         }
@@ -299,32 +301,26 @@ LRESULT CALLBACK mainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
             DEBUG_PRINTF("window class name '%ls'\n", className);
 #endif
 
-            MinimizeWindowToTray(hwnd);
+            MinimizeWindowToTray(hwnd, hwnd_);
 
             break;
         }
 
         case WM_DESTROY: {
-            for (int i = 0; i < MAXTRAYITEMS; i++) {
-                if (hwndItems_[i]) {
-                    RestoreWindowFromTray(hwndItems_[i]);
-                }
-            }
+            RestoreAllWindowsFromTray();
+
             if (hookDll_) {
                 UnRegisterHook();
                 FreeLibrary(hookDll_);
             }
+
             PostQuitMessage(0);
             break;
         }
 
         default: {
             if (msg == WM_TASKBAR_CREATED) {
-                for (int i = 0; i < MAXTRAYITEMS; i++) {
-                    if (hwndItems_[i]) {
-                        AddToTray(i);
-                    }
-                }
+                AddAllWindowsToTray();
             }
             break;
         }
@@ -404,10 +400,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
     if (!(hwnd_ = CreateWindowW(NAMEW, NAMEW, WS_OVERLAPPED, 0, 0, 0, 0, (HWND)NULL, (HMENU)NULL, (HINSTANCE)hInstance, (LPVOID)NULL))) {
         MessageBoxW(NULL, L"Error creating window", L"RBTray", MB_OK | MB_ICONERROR);
         return 0;
-    }
-
-    for (int i = 0; i < MAXTRAYITEMS; i++) {
-        hwndItems_[i] = NULL;
     }
 
     WM_TASKBAR_CREATED = RegisterWindowMessageW(L"TaskbarCreated");

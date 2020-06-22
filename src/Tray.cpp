@@ -23,20 +23,14 @@
 #include "Tray.h"
 
 #include "RBTray.h"
+#include "TrayIcon.h"
 
 #include <Windows.h>
+#include <map>
+#include <memory>
 
-HWND hwndItems_[MAXTRAYITEMS] = { NULL };
-
-static int FindInTray(HWND hwnd)
-{
-    for (int i = 0; i < MAXTRAYITEMS; i++) {
-        if (hwndItems_[i] == hwnd) {
-            return i;
-        }
-    }
-    return -1;
-}
+typedef std::map<HWND, std::unique_ptr<TrayIcon>> TrayIconMap;
+static TrayIconMap trayIconMap_;
 
 static HICON GetWindowIcon(HWND hwnd)
 {
@@ -56,65 +50,27 @@ static HICON GetWindowIcon(HWND hwnd)
     return LoadIcon(NULL, IDI_WINLOGO);
 }
 
-static bool AddWindowToTray(HWND hwnd)
+static bool AddWindowToTray(HWND hwnd, HWND messageWnd)
 {
-    int i = FindInTray(NULL);
-    if (i == -1) {
+    TrayIconMap::iterator it = trayIconMap_.find(hwnd);
+    if (it != trayIconMap_.end()) {
         return false;
     }
-    hwndItems_[i] = hwnd;
-    return AddToTray(i);
-}
-
-static bool RemoveFromTray(int i)
-{
-    NOTIFYICONDATA nid;
-    ZeroMemory(&nid, sizeof(nid));
-    nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-    nid.hWnd = hwnd_;
-    nid.uID = (UINT)i;
-    if (!Shell_NotifyIcon(NIM_DELETE, &nid)) {
-        return false;
-    }
-    return true;
+    trayIconMap_[hwnd].reset(new TrayIcon());
+    return trayIconMap_[hwnd]->create(messageWnd, WM_TRAYCMD, GetWindowIcon(hwnd));
 }
 
 static bool RemoveWindowFromTray(HWND hwnd)
 {
-    int i = FindInTray(hwnd);
-    if (i == -1) {
+    TrayIconMap::iterator it = trayIconMap_.find(hwnd);
+    if (it == trayIconMap_.end()) {
         return false;
     }
-    if (!RemoveFromTray(i)) {
-        return false;
-    }
-    hwndItems_[i] = NULL;
+    trayIconMap_.erase(it);
     return true;
 }
 
-bool AddToTray(int i)
-{
-    NOTIFYICONDATA nid;
-    ZeroMemory(&nid, sizeof(nid));
-    nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-    nid.hWnd = hwnd_;
-    nid.uID = (UINT)i;
-    nid.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP;
-    nid.uCallbackMessage = WM_TRAYCMD;
-    nid.hIcon = GetWindowIcon(hwndItems_[i]);
-    GetWindowText(hwndItems_[i], nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]));
-    nid.uVersion = NOTIFYICON_VERSION;
-    if (!Shell_NotifyIcon(NIM_ADD, &nid)) {
-        return false;
-    }
-    if (!Shell_NotifyIcon(NIM_SETVERSION, &nid)) {
-        Shell_NotifyIcon(NIM_DELETE, &nid);
-        return false;
-    }
-    return true;
-}
-
-void MinimizeWindowToTray(HWND hwnd)
+void MinimizeWindowToTray(HWND hwnd, HWND messageWnd)
 {
     // Don't minimize MDI child windows
     if ((UINT)GetWindowLongPtr(hwnd, GWL_EXSTYLE) & WS_EX_MDICHILD) {
@@ -134,8 +90,8 @@ void MinimizeWindowToTray(HWND hwnd)
     ShowWindow(hwnd, SW_HIDE);
 
     // Add icon to tray if it's not already there
-    if (FindInTray(hwnd) == -1) {
-        if (!AddWindowToTray(hwnd)) {
+    if (trayIconMap_.find(hwnd) == trayIconMap_.end()) {
+        if (!AddWindowToTray(hwnd, messageWnd)) {
             // If there is something wrong with tray icon restore program window.
             ShowWindow(hwnd, SW_SHOW);
             SetForegroundWindow(hwnd);
@@ -170,20 +126,45 @@ void CloseWindowFromTray(HWND hwnd)
 
 void RefreshWindowInTray(HWND hwnd)
 {
-    int i = FindInTray(hwnd);
-    if (i == -1) {
+    TrayIconMap::iterator it = trayIconMap_.find(hwnd);
+    if (it == trayIconMap_.end()) {
         return;
     }
+
     if (!IsWindow(hwnd) || IsWindowVisible(hwnd)) {
         RemoveWindowFromTray(hwnd);
     } else {
-        NOTIFYICONDATA nid;
-        ZeroMemory(&nid, sizeof(nid));
-        nid.cbSize = NOTIFYICONDATA_V2_SIZE;
-        nid.hWnd = hwnd_;
-        nid.uID = (UINT)i;
-        nid.uFlags = NIF_TIP;
-        GetWindowText(hwnd, nid.szTip, sizeof(nid.szTip) / sizeof(nid.szTip[0]));
-        Shell_NotifyIcon(NIM_MODIFY, &nid);
+        it->second->refresh();
     }
+}
+
+void AddAllWindowsToTray()
+{
+    //for (int i = 0; i < MAXTRAYITEMS; i++) {
+    //    if (hwndItems_[i]) {
+    //        AddToTray(i);
+    //    }
+    //}
+}
+
+void RestoreAllWindowsFromTray()
+{
+    for (TrayIconMap::const_iterator cit = trayIconMap_.cbegin(); cit != trayIconMap_.cend(); ++cit) {
+        HWND hwnd = cit->first;
+        ShowWindow(hwnd, SW_SHOW);
+        SetForegroundWindow(hwnd);
+    }
+
+    trayIconMap_.clear();
+}
+
+HWND GetWindowFromID(UINT id)
+{
+    for (TrayIconMap::const_iterator cit = trayIconMap_.cbegin(); cit != trayIconMap_.cend(); ++cit) {
+        if (cit->second->id() == id) {
+            return cit->first;
+        }
+    }
+
+    return NULL;
 }

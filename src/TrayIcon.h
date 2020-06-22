@@ -33,6 +33,10 @@ public:
     bool create(HWND hwnd, UINT msg, HICON icon);
     void destroy();
 
+    void refresh();
+
+    inline UINT id() const { return nid_.uID; }
+
 private:
     TrayIcon(const TrayIcon &) = delete;
     TrayIcon & operator=(const TrayIcon &) = delete;
