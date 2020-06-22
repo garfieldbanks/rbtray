@@ -419,7 +419,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE /*hPrevInstance*
 
     TrayIcon trayIcon;
     if (settings_.trayIcon_) {
-        trayIcon.create(hwnd_, LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY)), WM_TRAYCMD);
+        trayIcon.create(hwnd_, WM_TRAYCMD, LoadIcon(hInstance_, MAKEINTRESOURCE(IDI_RBTRAY)));
     }
 
     MSG msg;

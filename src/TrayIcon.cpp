@@ -29,7 +29,7 @@ static volatile LONG id_;
 TrayIcon::TrayIcon() { ZeroMemory(&nid_, sizeof(nid_)); }
 TrayIcon::~TrayIcon() { destroy(); }
 
-void TrayIcon::create(HWND hwnd, HICON icon, UINT msg)
+void TrayIcon::create(HWND hwnd, UINT msg, HICON icon)
 {
     LONG id = InterlockedIncrement(&id_);
 
