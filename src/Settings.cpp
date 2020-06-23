@@ -27,7 +27,7 @@
 
 static bool getBool(const cJSON * cjson, const char * key, bool defaultValue);
 static const char * getString(const cJSON * cjson, const char * key);
-static void iterateArray(const cJSON * cjson, bool (* callback)(const cJSON *, void *), void *);
+static void iterateArray(const cJSON * cjson, bool (*callback)(const cJSON *, void *), void *);
 static bool classnameItemCallback(const cJSON * cjson, void * userData);
 
 Settings::Settings() : shouldExit_(false), trayIcon_(false), useHook_(true), autotray_(nullptr), autotraySize_(0) {}
@@ -53,25 +53,14 @@ void Settings::parseCommandLine()
             shouldExit_ = true;
         }
 
+        if (!wcscmp(argv[a], L"--tray-icon")) {
+            trayIcon_ = true;
+        }
+
         if (!wcscmp(argv[a], L"--no-hook")) {
             useHook_ = false;
         }
     }
-}
-
-static bool callback(const cJSON * item, void * userData)
-{
-    if (!cJSON_IsObject(item)) {
-        DEBUG_PRINTF("bad type for '%s'\n", item->string);
-        return false;
-    }
-
-    const char * str = getString(item, "classname");
-    if (str) {
-        Settings * thisPtr = (Settings *)userData;
-        thisPtr->addAutotray(str);
-    }
-    return false;
 }
 
 void Settings::parseJson(const char * json)
@@ -134,13 +123,12 @@ const char * getString(const cJSON * cjson, const char * key)
 {
     cJSON * item = cJSON_GetObjectItemCaseSensitive(cjson, key);
     if (!item) {
-        DEBUG_PRINTF("missing key '%s' for '%s'\n", key, item->string);
         return nullptr;
     }
 
     const char * str = cJSON_GetStringValue(item);
     if (!str) {
-        DEBUG_PRINTF("bad type for '%s'\n", item->string);
+        DEBUG_PRINTF("bad type for '%s'\n", cjson->string);
         return nullptr;
     }
 
